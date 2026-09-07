@@ -141,21 +141,38 @@ async function run(label, contextOptions, shots) {
   await page.screenshot({ path: `docs/${shots.play}` });
 
   // --- one-button jump, keyboard and pointer -------------------------------
-  await page.waitForFunction(() => window.pulseCube.state.player.grounded, null, { timeout: 6000 });
-  await page.keyboard.press('Space');
-  const jumped = await page
-    .waitForFunction(() => window.pulseCube.state.player.vy > 1, null, { timeout: 3000 })
-    .then(() => true)
-    .catch(() => false);
-  check(`${label}: Space jumps`, jumped);
+  // The cube is auto-running towards real spikes, so between "it is grounded"
+  // and "the input arrives" it can die and the input becomes a restart rather
+  // than a jump. Each attempt therefore re-establishes a live, grounded cube
+  // on clear ground first, and the check is retried.
+  async function jumpCheck(name, fire) {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      if ((await snapshot(page)).phase !== 'playing') {
+        await page.locator('#overlay-action').click();
+        await page.waitForFunction(() => window.pulseCube.state.phase === 'playing');
+      }
+      // Park on the long clear stretch at the start of level 1.
+      await page.evaluate(() => window.pulseCube.seekTo(12));
+      await page.waitForFunction(
+        () => window.pulseCube.state.player.grounded && window.pulseCube.state.phase === 'playing',
+        null,
+        { timeout: 5000 },
+      );
+      await fire();
+      const ok = await page
+        .waitForFunction(() => window.pulseCube.state.player.vy > 1, null, { timeout: 2500 })
+        .then(() => true)
+        .catch(() => false);
+      if (ok) {
+        check(name, true);
+        return;
+      }
+    }
+    check(name, false, 'no upward velocity after 5 attempts');
+  }
 
-  await page.waitForFunction(() => window.pulseCube.state.player.grounded, null, { timeout: 6000 });
-  await tapCanvas(page, touch);
-  const tapped = await page
-    .waitForFunction(() => window.pulseCube.state.player.vy > 1, null, { timeout: 3000 })
-    .then(() => true)
-    .catch(() => false);
-  check(`${label}: ${touch ? 'tap' : 'click'} jumps`, tapped);
+  await jumpCheck(`${label}: Space jumps`, () => page.keyboard.press('Space'));
+  await jumpCheck(`${label}: ${touch ? 'tap' : 'click'} jumps`, () => tapCanvas(page, touch));
 
   // --- pause freezes the run ----------------------------------------------
   await page.locator('#pause-btn').click();
