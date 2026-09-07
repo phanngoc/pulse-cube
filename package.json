@@ -1,0 +1,22 @@
+{
+  "name": "pulse-cube",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Pulse Cube - an original one-button auto-running platformer: three hand-built levels, spikes, pads, a beat you run in time with, and a checkpoint practice mode.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.47.2",
+    "typescript": "5.6.2",
+    "vite": "5.4.21",
+    "vitest": "2.1.2"
+  }
+}

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d1626" />
+    <meta name="description" content="Pulse Cube - an original one-button auto-running platformer with three hand-built levels, a generated beat and a checkpoint practice mode." />
+    <title>Pulse Cube</title>
+  </head>
+  <body>
+    <canvas id="scene" aria-label="Pulse Cube game view" role="img"></canvas>
+
+    <header id="hud">
+      <div id="progress" role="progressbar" aria-label="Level progress" aria-valuemin="0" aria-valuemax="100">
+        <div id="progress-fill"></div>
+        <span id="progress-text">0%</span>
+      </div>
+      <div class="hud-group"><span class="label">Level</span><span id="level-name" class="value small">1. First Light</span></div>
+      <div class="hud-group"><span class="label">Best</span><span id="best" class="value">0%</span></div>
+      <div class="hud-group"><span class="label">Attempt</span><span id="attempts" class="value">0</span></div>
+      <div class="hud-spacer"></div>
+      <button id="pause-btn" type="button">Pause</button>
+      <button id="mute-btn" type="button" aria-pressed="false">Sound on</button>
+    </header>
+
+    <div id="overlay">
+      <div class="panel">
+        <h1 id="overlay-title">Pulse Cube</h1>
+        <div class="picker">
+          <div class="row" role="group" aria-label="Level">
+            <button class="level" type="button" data-level="0" aria-pressed="true">1 · First Light</button>
+            <button class="level" type="button" data-level="1" aria-pressed="false">2 · Split Signal</button>
+            <button class="level" type="button" data-level="2" aria-pressed="false">3 · Overdrive</button>
+          </div>
+          <div class="row" role="group" aria-label="Mode">
+            <button class="mode" type="button" data-mode="normal" aria-pressed="true">Normal</button>
+            <button class="mode" type="button" data-mode="practice" aria-pressed="false">Practice · checkpoints</button>
+          </div>
+        </div>
+        <div id="overlay-body"></div>
+        <button id="overlay-action" type="button">Start</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
