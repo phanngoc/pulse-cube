@@ -68,10 +68,21 @@ in on the correct bar instead of restarting the bar at 1.
 | Jump | click anywhere | tap anywhere | `Space`, `↑`, `W` or `Enter` |
 | Continue / restart | click, or the button | tap, or the button | any jump key |
 | Pause / resume | `P` or `Esc`, or the Pause button | Pause button | `P` / `Esc` |
-| Mute | `M`, or the Sound button | Sound button | `M` |
+| Mute | `M`, or the Sound button | Sound button (Pause → Sound) | `M` |
+| Reduced effects | Effects button (Pause → Effects) | same | — |
 
 The jump button is also "continue" on every non-playing screen, so one finger
 drives the whole game.
+
+On a phone only **Pause** sits on the playfield; Sound and Effects live in the
+pause panel, because three 44px buttons in the HUD wrapped it onto three rows
+and pushed controls over the play area on a 360×640 screen.
+
+A second finger landing while the first is still held **does** jump. Players
+drum alternating thumbs, and the press used to fire only on the first source
+going down, which silently swallowed that jump. One touch is still exactly one
+press, and a buffer re-armed in mid-air cannot double-jump — the buffer only
+spends on a grounded or coyote frame.
 
 ## Install, dev, build
 
@@ -83,7 +94,7 @@ npm run dev     # http://localhost:5173
 npm run build   # tsc --noEmit && vite build  ->  dist/
 npm run preview # serve the production build on :4173
 npm test        # 31 unit tests (vitest, no browser)
-npm run smoke   # 64 browser checks (Playwright); writes docs/*.png
+npm run smoke   # 68 browser checks (Playwright); writes docs/*.png
 ```
 
 `npm run smoke` needs a Chromium: `npx playwright install chromium`.
@@ -151,7 +162,7 @@ $ npm run build
 ✓ built in 87ms      dist/assets/index-*.js 21.0 kB │ gzip 7.6 kB
 
 $ npm run smoke
-64/64 checks passed
+68/68 checks passed
 ```
 
 The unit tests cover the jump arc, no double-jumping, the input buffer and
@@ -170,6 +181,12 @@ reaching the finish clears the level, practice mode respawns exactly at the
 last checkpoint and keeps counting attempts, mute round-trips, and no console
 errors occur.
 
+Four of those checks cover the multi-touch press: two `PointerEvent`s with
+different `pointerId`s are dispatched on `#scene`, and the buffer is asserted
+to arm on the second one while the first is still down. They were confirmed to
+**fail** on the pre-fix build (`jumpBuffer=0` at both viewports) and pass
+after, so they are a real regression guard rather than a tautology.
+
 ## Source reference
 
 Inspired by **Geometry Dash Lite** (RobTop Games) —
@@ -186,6 +203,68 @@ track — is synthesised with WebAudio oscillators and generated noise buffers.
 Nothing is downloaded, so there is nothing to attribute.
 
 Code: MIT, see [LICENSE](LICENSE).
+
+## Mobile pass — what changed, and what it measured
+
+Baseline is commit `0d9469c`, measured with `scripts/mobile-audit.mjs` before
+any of this work. "After" is the same script on the same machine against the
+tip of this branch. Both runs use the same build pipeline, the same five
+viewports and the same scene (level 1 from the start).
+
+| | Baseline `0d9469c` | After |
+| --- | --- | --- |
+| Device pixel ratio | 2.5 (uncapped) | **2** |
+| Backing store @390×844 | 975×2110 = 2.06 Mpx | **780×1688 = 1.32 Mpx** (−36%) |
+| Touch targets under 44 CSS px | **7–8** per viewport (pause, mute, all three level buttons, both mode buttons, at 29–33px tall) | **0** at all five viewports |
+| `touch-action` | `none` on `html, body`; `#scene` left `auto` | `manipulation` on `body` (+ `overscroll-behavior: none`), `none` scoped to `#scene` |
+| Overlay panel scrollable on a short screen | — | `.panel` stays `overflow-y: auto` |
+| HUD height @360×640 | 82px (one row) | 82px (one row) — see note |
+| Horizontal overflow | 0px | 0px |
+| Reduced-effects mode | none | honours `prefers-reduced-motion`, explicit choice persists |
+| Second finger while the first is held | **no jump at all** | jumps |
+| Smoke checks | 64 | 68 |
+
+The HUD row is listed as unchanged because it is: raising every target to 44px
+*broke* it to three rows / 134px with Sound and Effects floating over the
+playfield, and moving those two into the pause panel brought it back to one
+row. That regression was caught by looking at a screenshot, not by an
+assertion, which is worth saying out loud.
+
+### Frame timing — read this before quoting the numbers
+
+`scripts/mobile-audit.mjs` records a 60-second frame-interval distribution
+after warmup at each viewport. **These numbers are not evidence of smooth
+60 Hz and must not be quoted as an FPS guarantee.** Headless Chromium drives
+`requestAnimationFrame` at roughly 30 Hz, so the floor of the distribution is
+the harness, not the game:
+
+```
+portrait-360x640   n=1539  p50=33.4ms  p95=66.7ms  p99=66.8ms  max=116.7ms  peak particles=26
+portrait-390x844   n=1574  p50=33.3ms  p95=66.7ms  p99=66.8ms  max=83.3ms   peak particles=26
+```
+
+`p50 ≈ 33.3ms` is identical at baseline and after. The only thing this
+distribution is good for is a **same-machine regression signal**: if a change
+made the loop meaningfully more expensive, the tail would move. It did not.
+Real 60 Hz behaviour on real hardware is **untested** — see the limitations.
+
+Particle count is bounded by construction rather than by a cap: a death emits
+exactly 26 pieces, there is one death per run, and the array is cleared on
+reset and filtered by lifetime. `peak particles=26` across every 60s run
+confirms it.
+
+### Reduced effects and determinism
+
+The Effects button (and `prefers-reduced-motion` when no explicit choice is
+stored) suppresses camera shake, the beat pulse and the death-debris **drawing
+only**. `state.shake`, `state.particles` and the beat value are all still
+simulated and still advance identically, so collision and scoring are
+unchanged between the two modes. Verified by playing both: the run dies on the
+same spike, with the same cause, at x = 21.36 vs 21.38 (frame-timing jitter),
+with 26 particles simulated in both.
+
+The beat is a brightness pulse, not a full-screen flash, and reduced mode
+removes it entirely. Nothing in the game strobes.
 
 ## Known limitations
 
@@ -204,6 +283,22 @@ Code: MIT, see [LICENSE](LICENSE).
   spaced to feel on-tempo, not snapped to a grid derived from the BPM.
 - Audio needs a user gesture to start (browser autoplay policy), so the track
   begins on the first tap or key press.
+- **No real device was ever used.** Every mobile result in this README comes
+  from Playwright viewport emulation in headless Chromium. That is not an
+  iPhone and not an Android phone. Real Safari (including its address-bar
+  resize, safe-area insets and audio-unlock behaviour) and real Android Chrome
+  are **completely untested**.
+- **The frame-interval numbers are not an FPS claim.** Headless rAF runs at
+  ~30 Hz, so `p50 ≈ 33.3ms` is the harness floor at baseline *and* after. Use
+  them only as a same-machine regression signal.
+- **The multi-touch fix is verified with synthetic `PointerEvent`s**, not with
+  two real fingers on a real screen. The smoke check was confirmed to fail on
+  the pre-fix build and pass after, which proves the logic — not the hardware
+  path.
+- No memory trend was measured over a long session; only peak particle count
+  is bounded and asserted.
+- Safe-area insets (`env(safe-area-inset-*)`) are not applied, so a notched
+  phone in landscape is untested territory.
 - `npm audit` reports two advisories, both devDependency-only and neither
   reachable from the shipped bundle: `esbuild` via Vite 5's dev server, and
   Playwright's `<1.55` downloader. They are left unforced rather than pinned
