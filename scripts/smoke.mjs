@@ -174,6 +174,33 @@ async function run(label, contextOptions, shots) {
   await jumpCheck(`${label}: Space jumps`, () => page.keyboard.press('Space'));
   await jumpCheck(`${label}: ${touch ? 'tap' : 'click'} jumps`, () => tapCanvas(page, touch));
 
+  // --- a second finger while the first is held still jumps ----------------
+  // Players drum alternating thumbs on a phone: the second finger lands before
+  // the first lifts. Gating the press on empty->non-empty swallowed that jump.
+  // Asserted on the buffer rather than on vy so it does not depend on being
+  // airborne or grounded at the moment the events land.
+  {
+    const second = await page.evaluate(async () => {
+      const scene = document.querySelector('#scene');
+      const ev = (type, id) =>
+        scene.dispatchEvent(
+          new PointerEvent(type, { pointerId: id, pointerType: 'touch', bubbles: true, cancelable: true }),
+        );
+      ev('pointerdown', 101); // first finger down, stays down
+      window.pulseCube.state.jumpBuffer = 0; // spend whatever it armed
+      ev('pointerdown', 102); // second finger, first still held
+      const armed = window.pulseCube.state.jumpBuffer;
+      ev('pointerup', 101);
+      ev('pointerup', 102);
+      return armed;
+    });
+    check(`${label}: second finger jumps while the first is held`, second > 0, `jumpBuffer=${second}`);
+    check(
+      `${label}: both fingers lifted releases the hold`,
+      (await page.evaluate(() => window.pulseCube.state.jumpHeld)) === false,
+    );
+  }
+
   // --- pause freezes the run ----------------------------------------------
   await page.locator('#pause-btn').click();
   await page.waitForFunction(() => window.pulseCube.state.phase === 'paused');
