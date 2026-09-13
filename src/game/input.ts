@@ -22,9 +22,15 @@ export class InputState {
 
   constructor(target: HTMLElement, private h: InputHandlers) {
     const down = (id: string) => {
-      const wasEmpty = this.sources.size === 0;
+      // Every *new* source is a press, not just the first. On a phone players
+      // drum alternating thumbs, and the second finger lands before the first
+      // has lifted; gating on empty->non-empty swallowed that jump entirely.
+      // One touch still yields exactly one press (add() reports the dedupe),
+      // and re-arming the buffer mid-air cannot double-jump: the buffer only
+      // spends on a grounded/coyote frame.
+      if (this.sources.has(id)) return;
       this.sources.add(id);
-      if (wasEmpty) this.h.press();
+      this.h.press();
     };
     const up = (id: string) => {
       if (!this.sources.delete(id)) return;

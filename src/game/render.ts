@@ -7,6 +7,9 @@ import type { Entity, GameState } from './types';
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   dpr = 1;
+  /** Cosmetic only. Suppresses shake, the beat pulse and debris; it never
+   *  touches simulation state, so scoring and collisions stay identical. */
+  reducedMotion = false;
 
   constructor(private canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
@@ -18,7 +21,11 @@ export class Renderer {
     const rect = this.canvas.getBoundingClientRect();
     const cssW = Math.max(1, Math.round(rect.width));
     const cssH = Math.max(1, Math.round(rect.height));
-    this.dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    // Capped at 2: a 3x phone gains no visible sharpness on flat-shaded
+    // rectangles but pays for 2.25x the fill. Shake below converts CSS px to
+    // device px with this same number, so the cap does not change how far the
+    // screen appears to move.
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.canvas.width = Math.round(cssW * this.dpr);
     this.canvas.height = Math.round(cssH * this.dpr);
     return { cssW, cssH };
@@ -29,7 +36,7 @@ export class Renderer {
     const level = levelAt(state.levelIndex);
     const beat = beatAt(level, state.time);
     // 0 on the beat, 1 just after - the whole scene breathes on this.
-    const pulse = Math.max(0, 1 - (beat % 1) * 2.6);
+    const pulse = this.reducedMotion ? 0 : Math.max(0, 1 - (beat % 1) * 2.6);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.background(state, pulse);
@@ -44,7 +51,9 @@ export class Renderer {
     const camY = -Math.max(FLOOR_MARGIN, state.viewH * 0.18);
 
     ctx.save();
-    if (state.shake > 0) {
+    if (state.shake > 0 && !this.reducedMotion) {
+      // 7 CSS px at full strength, converted to device px. Purely cosmetic:
+      // it is inside save()/restore() and never feeds collision or scoring.
       const k = state.shake * 7 * this.dpr;
       ctx.translate((Math.random() - 0.5) * k, (Math.random() - 0.5) * k);
     }
@@ -61,7 +70,9 @@ export class Renderer {
     }
     if (level.length >= camX - 2 && level.length <= camX + state.viewW + 2) this.goal(level.length, state);
 
-    for (const q of state.particles) {
+    // Debris is the single biggest source of flicker; drop it here, not from
+    // the simulation, so state stays byte-identical between the two modes.
+    for (const q of this.reducedMotion ? [] : state.particles) {
       ctx.globalAlpha = Math.max(0, q.life / q.maxLife);
       ctx.fillStyle = q.color;
       ctx.fillRect(q.x - q.size / 2, q.y - q.size / 2, q.size, q.size);

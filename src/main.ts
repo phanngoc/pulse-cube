@@ -23,6 +23,7 @@ const game = new Game({
   levelName: el('level-name'),
   pauseBtn: el<HTMLButtonElement>('pause-btn'),
   muteBtn: el<HTMLButtonElement>('mute-btn'),
+  motionBtn: el<HTMLButtonElement>('motion-btn'),
 });
 
 // Exposed so the Playwright smoke test can inspect real simulation state

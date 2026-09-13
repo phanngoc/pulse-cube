@@ -1,0 +1,114 @@
+{
+  "$comment": "Machine-readable design/balance contract for Pulse Cube. Every number here is asserted by tests/logic.test.ts or scripts/smoke.mjs; changing one without changing the tests should fail the suite.",
+  "id": "pulse-cube",
+  "name": "Pulse Cube",
+  "version": "1.1.0",
+  "genre": "one-button auto-running platformer, hand-built levels",
+  "engine": "canvas2d",
+  "renderer": {
+    "type": "orthographic side view, uniform scale on both axes",
+    "dprCap": 2,
+    "$comment": "The cap was 2.5 in 1.0.0 (the raw devicePixelRatio of the test phones). Capping to 2 cuts the 390x844 backing store from 975x2110 to 780x1688, ~36% fewer pixels per frame. Screen-space shake is unaffected: the shake*dpr term runs under setTransform(identity), so the *dpr is a CSS->device unit conversion, not an amplitude."
+  },
+  "loop": {
+    "fixedStepSeconds": 0.004166666666666667,
+    "$stepComment": "1/240. At 10.4 cubes/s a 50ms frame moves the cube half its own width, enough to clip a spike corner or skip a landing; slicing to ~4ms makes every contact a real overlap.",
+    "deterministic": true,
+    "prng": "none - levels are hand-authored, there is no procedural generation"
+  },
+  "world": {
+    "unit": "1 world unit = 1 cube",
+    "speed": 10.4,
+    "gravity": 127,
+    "jumpVelocity": 25.7,
+    "padVelocity": 33.5,
+    "pitY": -6,
+    "derivedJumpArc": {
+      "peakHeightCubes": 2.6,
+      "airTimeSeconds": 0.405,
+      "groundCoverCubes": 4.21,
+      "padPeakCubes": 4.42,
+      "padCoverCubes": 5.48,
+      "$comment": "Every level is laid out against these four numbers. Platform tops sit at 2 and 4; floor gaps stay at or under 3 cubes; only a pad is asked to clear more."
+    }
+  },
+  "camera": {
+    "viewHeightCubes": 13,
+    "minViewWidthCubes": 12,
+    "maxViewWidthCubes": 34,
+    "floorMarginCubes": 2.6,
+    "anchor": 0.3,
+    "$comment": "The cube sits 30% across the screen so the next hazard is always on screen before it is actionable. Scale is uniform on both axes - a cube that is not square is not a cube - so a tall phone trades view width for sky, never for readable lead time."
+  },
+  "input": {
+    "scheme": "one button: jump",
+    "bindings": { "keyboard": ["Space", "ArrowUp", "KeyW", "Enter"], "pointer": "tap or click anywhere on #scene", "pause": ["KeyP", "Escape"], "mute": ["KeyM"] },
+    "jumpBufferSeconds": 0.12,
+    "coyoteSeconds": 0.08,
+    "rules": [
+      "held-ness is a set of active sources keyed by pointerId / key code",
+      "every NEW source is a press, so a second finger landing while the first is still down still jumps (fixed in 1.1.0; the empty->non-empty gate swallowed it)",
+      "one touch is exactly one press - the set dedupes by pointerId - and a re-armed buffer cannot double-jump because the buffer only spends on a grounded or coyote frame",
+      "keyboard auto-repeat is not a new press (e.repeat is ignored)",
+      "release fires only when the last source goes; pointerup, pointercancel, window blur and visibilitychange all clear every source",
+      "pointerdown on a button does not jump"
+    ],
+    "touchTargetMinPx": 44,
+    "touchActionScope": ["#scene"],
+    "$comment": "touch-action:none is scoped to the play surface only. <body> gets touch-action:manipulation + overscroll-behavior:none, so the overlay panel stays scrollable on a short screen while play never scrolls the page."
+  },
+  "levels": [
+    { "id": 1, "name": "First Light", "bpm": 128, "lengthCubes": 186, "checkpoints": [40, 78, 116, 154], "design": "one obstacle at a time, always with a long clear run-up; nowhere needs two jumps back to back" },
+    { "id": 2, "name": "Split Signal", "bpm": 140, "lengthCubes": 224, "checkpoints": [44, 88, 130, 178] },
+    { "id": 3, "name": "Overdrive", "bpm": 152, "lengthCubes": 262, "checkpoints": [38, 80, 120, 160, 220] }
+  ],
+  "hazards": [
+    { "kind": "spike", "answer": "jump", "box": "drawn 1x1, TESTED inset by 0.28 in x and trimmed 0.2 off the top", "silhouette": "upward triangle, distinct from every solid", "$comment": "A pixel-perfect triangle is unfair at this speed - the player reads the tip, not the base - so the hitbox matches what the eye expects. The cube is inset 0.08 by the same argument." },
+    { "kind": "pit", "answer": "jump the gap", "box": "absence of ground; death below y = -6", "silhouette": "a hole in the floor band" },
+    { "kind": "block", "answer": "land on it", "box": "solid, tested against the exact cube with no inset", "$comment": "Insetting the cube box would leave a sliver of air it can never close in one slice at this gravity, so it would fall through its own floor." },
+    { "kind": "pad", "answer": "touch it to launch", "box": "1 x 0.35", "silhouette": "flat launcher, clears 4.42 cubes" }
+  ],
+  "modes": {
+    "normal": { "onDeath": "restart the level from the start", "scored": true, "$comment": "The only mode that feeds best-progress. Classic core loop, unchanged." },
+    "practice": { "onDeath": "respawn at the last passed checkpoint", "scored": false, "$comment": "Deliberately separated from classic scoring so practice can never inflate a recorded best." }
+  },
+  "progression": {
+    "metric": "best progress through the level, as a percentage",
+    "attemptsCounted": true,
+    "instantRetry": "one action on the game-over overlay, or the same button that jumps",
+    "rewards": "optional; no streaks, no ads, no payments, no gating of play"
+  },
+  "effects": {
+    "deathParticles": 26,
+    "particleLifeSeconds": 0.8,
+    "bounded": "exactly one burst per death, cleared on reset and filtered by life; there is no spawner that can grow unbounded",
+    "shakeSeconds": "decays from 1.0",
+    "beat": "a pulse synchronised to the level bpm; brightness only, never a full-screen flash",
+    "noStrobe": true,
+    "levels": ["full", "reduced"],
+    "prefersReducedMotionDefault": "reduced",
+    "reducedMotionSuppresses": ["camera shake", "beat pulse", "death debris DRAWING"],
+    "determinismInvariant": "reduced mode changes DRAWING only. state.shake, state.particles and the beat value are all still simulated and still advance identically, so collision and scoring are bit-identical between the two modes.",
+    "persistence": "an explicit choice is stored and wins over the media query; with no stored choice the media query decides"
+  },
+  "audio": {
+    "synthesis": "WebAudio oscillators, no files",
+    "unlock": "on the first user gesture",
+    "mutePersisted": true,
+    "autoPauseOnHide": true,
+    "$hideComment": "visibilitychange pauses a run in progress (game.ts); the same event also clears every held input source (input.ts)."
+  },
+  "onboarding": {
+    "type": "text on the start overlay over a live scene, dismissed by starting",
+    "teaches": ["the cube runs on its own", "one button jumps", "hold to jump again the moment you land", "the bar at the top is progress"]
+  },
+  "assets": {
+    "images": 0,
+    "audioFiles": 0,
+    "webFonts": 0,
+    "$comment": "Everything is drawn with Canvas 2D primitives and all sound is synthesised with WebAudio oscillators. Fonts are the system-ui stack. No third-party asset is bundled.",
+    "licence": "MIT (see LICENSE)"
+  },
+  "acceptanceViewports": ["360x640", "390x844", "430x932", "844x390", "1280x800"],
+  "assertedIn": ["tests/logic.test.ts", "scripts/smoke.mjs", "scripts/mobile-audit.mjs"]
+}

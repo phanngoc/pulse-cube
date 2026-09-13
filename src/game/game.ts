@@ -16,7 +16,7 @@ import {
   viewSizeFor,
 } from './logic';
 import { Renderer } from './render';
-import { loadBest, loadMuted, saveBest, saveMuted } from './storage';
+import { loadBest, loadMuted, loadReducedMotion, saveBest, saveMuted, saveReducedMotion } from './storage';
 import type { GameState, Mode, Phase } from './types';
 
 export interface GameElements {
@@ -34,6 +34,7 @@ export interface GameElements {
   levelName: HTMLElement;
   pauseBtn: HTMLButtonElement;
   muteBtn: HTMLButtonElement;
+  motionBtn: HTMLButtonElement;
 }
 
 const pct = (v: number): string => `${Math.floor(v * 100)}%`;
@@ -54,6 +55,8 @@ export class Game {
     this.renderer = new Renderer(el.canvas);
     this.sfx.setMuted(loadMuted());
     this.el.muteBtn.textContent = this.sfx.muted ? 'Sound off' : 'Sound on';
+    this.renderer.reducedMotion = loadReducedMotion();
+    this.applyMotionLabel();
 
     this.input = new InputState(el.canvas, {
       press: () => this.onPress(),
@@ -65,6 +68,7 @@ export class Game {
     el.overlayAction.addEventListener('click', () => this.confirm());
     el.pauseBtn.addEventListener('click', () => this.togglePause());
     el.muteBtn.addEventListener('click', () => this.toggleMute());
+    el.motionBtn.addEventListener('click', () => this.toggleMotion());
     for (const b of el.levelButtons) {
       b.addEventListener('click', () => this.selectLevel(Number(b.dataset.level)));
     }
@@ -211,6 +215,21 @@ export class Game {
     this.el.overlay.classList.add('hidden');
     this.sfx.startMusic(level.bpm, beatAt(level, this.state.time));
     this.last = performance.now();
+  }
+
+  /** Cosmetic switch only - it changes what is drawn, never what is
+   *  simulated, so a best set with effects off is the same run either way. */
+  private toggleMotion(): void {
+    const next = !this.renderer.reducedMotion;
+    this.renderer.reducedMotion = next;
+    saveReducedMotion(next);
+    this.applyMotionLabel();
+  }
+
+  private applyMotionLabel(): void {
+    const on = this.renderer.reducedMotion;
+    this.el.motionBtn.textContent = on ? 'Effects low' : 'Effects on';
+    this.el.motionBtn.setAttribute('aria-pressed', String(on));
   }
 
   private toggleMute(): void {
