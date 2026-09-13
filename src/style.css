@@ -46,6 +46,9 @@ html, body {
   padding: max(8px, env(safe-area-inset-top)) clamp(10px, 3vw, 22px) 10px;
   background: linear-gradient(180deg, rgba(5, 10, 20, 0.78), rgba(5, 10, 20, 0));
   pointer-events: none;
+  /* One row at 360px. Sound and Effects are settings and live in the panel,
+     reached through Pause; only the in-run control stays on the playfield. */
+  flex-wrap: wrap;
   /* Above the overlay: pause and sound stay reachable while a panel is up. */
   z-index: 3;
 }
@@ -70,11 +73,13 @@ html, body {
   inset: 0;
   display: grid;
   place-items: center;
-  font-size: 9px;
+  /* 9px + screen blending was unreadable against the unfilled track on a
+     phone; plain light text on the dark track holds up at 360px. */
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: #06111f;
-  mix-blend-mode: screen;
+  color: #dfe9fb;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
 }
 
 .hud-group { display: flex; flex-direction: column; line-height: 1.05; }
@@ -154,3 +159,5 @@ h1 { margin: 0 0 12px; font-size: clamp(22px, 6vw, 36px); letter-spacing: -0.01e
   #progress-fill { transition: none; }
   #overlay { backdrop-filter: none; }
 }
+
+.settings { margin-top: 4px; }

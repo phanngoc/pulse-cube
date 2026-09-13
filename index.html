@@ -20,8 +20,6 @@
       <div class="hud-group"><span class="label">Attempt</span><span id="attempts" class="value">0</span></div>
       <div class="hud-spacer"></div>
       <button id="pause-btn" type="button">Pause</button>
-      <button id="mute-btn" type="button" aria-pressed="false">Sound on</button>
-      <button id="motion-btn" type="button" aria-pressed="false" title="Reduce shake, flashes and debris">Effects on</button>
     </header>
 
     <div id="overlay">
@@ -39,6 +37,10 @@
           </div>
         </div>
         <div id="overlay-body"></div>
+        <div class="row settings" role="group" aria-label="Settings">
+          <button id="mute-btn" type="button" aria-pressed="false">Sound on</button>
+          <button id="motion-btn" type="button" aria-pressed="false" title="Reduce shake, flashes and debris">Effects on</button>
+        </div>
         <button id="overlay-action" type="button">Start</button>
       </div>
     </div>
