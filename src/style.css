@@ -15,12 +15,24 @@ html, body {
   background: #0d1626;
   color: var(--ink);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  touch-action: none;
+  /* Scoped, not global: the play surface swallows gestures, but a panel that
+     overflows on a short screen must still scroll. `manipulation` keeps the
+     double-tap-zoom delay off the menus without freezing them. */
+  touch-action: manipulation;
+  overscroll-behavior: none;
   -webkit-user-select: none;
   user-select: none;
 }
 
-#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; }
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: pointer;
+  touch-action: none; /* the one surface where a swipe must never scroll */
+}
 
 #hud {
   position: fixed;
@@ -74,12 +86,16 @@ html, body {
 button {
   pointer-events: auto;
   font: inherit;
-  font-size: clamp(11px, 2.8vw, 14px);
+  font-size: clamp(12px, 2.8vw, 14px);
   color: var(--ink);
   background: rgba(255, 255, 255, 0.09);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 999px;
-  padding: 7px 13px;
+  /* Project acceptance is a 44 CSS px target. The box is what the finger
+     hits, so it is enforced here rather than by growing the font. */
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 16px;
   cursor: pointer;
 }
 button:hover { background: rgba(255, 255, 255, 0.17); }
@@ -116,8 +132,8 @@ h1 { margin: 0 0 12px; font-size: clamp(22px, 6vw, 36px); letter-spacing: -0.01e
 #overlay-body .big { font-size: clamp(36px, 11vw, 56px); font-weight: 800; color: var(--accent); margin: 4px 0; }
 #overlay-body .big span { display: block; font-size: clamp(11px, 2.8vw, 13px); font-weight: 600; color: var(--muted); }
 
-.picker { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-.row { display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; }
+.picker { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 #overlay.no-picker .picker { display: none; }
 .level.on, .mode.on { background: var(--accent); color: #16233a; border-color: var(--accent); font-weight: 700; }
 
@@ -131,3 +147,10 @@ h1 { margin: 0 0 12px; font-size: clamp(22px, 6vw, 36px); letter-spacing: -0.01e
   border-color: var(--accent);
 }
 #overlay-action:hover { filter: brightness(1.08); background: var(--accent); }
+
+/* Honour the OS setting for the DOM chrome too. The canvas side is handled in
+   render.ts, which the in-game Effects button also drives. */
+@media (prefers-reduced-motion: reduce) {
+  #progress-fill { transition: none; }
+  #overlay { backdrop-filter: none; }
+}
