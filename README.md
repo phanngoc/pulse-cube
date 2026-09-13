@@ -239,9 +239,21 @@ after warmup at each viewport. **These numbers are not evidence of smooth
 the harness, not the game:
 
 ```
-portrait-360x640   n=1539  p50=33.4ms  p95=66.7ms  p99=66.8ms  max=116.7ms  peak particles=26
-portrait-390x844   n=1574  p50=33.3ms  p95=66.7ms  p99=66.8ms  max=83.3ms   peak particles=26
+portrait-360x640    720x1280   n=1539  p50=33.4ms  p95=66.7ms  p99=66.8ms  max=116.7ms  >20ms=66.7%  peak particles=26
+portrait-390x844    780x1688   n=1574  p50=33.3ms  p95=66.7ms  p99=66.8ms  max=83.3ms   >20ms=68.4%  peak particles=26
+portrait-430x932    860x1864   n=1625  p50=33.3ms  p95=66.7ms  p99=66.7ms  max=83.3ms   >20ms=60.1%  peak particles=26
+landscape-844x390  1688x780    n=1493  p50=33.4ms  p95=66.7ms  p99=66.8ms  max=100.0ms  >20ms=69.5%  peak particles=26
+desktop-1280x800   2560x1600   n=1382  p50=49.9ms  p95=66.7ms  p99=66.8ms  max=100.0ms  >20ms=77.4%  peak particles=26
 ```
+
+All five report `overflowX=0px`, `body` `touch-action: manipulation`, `#scene`
+`touch-action: none`, `.panel` `overflow-y: auto`, **0 touch targets under
+44px**, and `dpr=2` — including the desktop regression pass.
+
+Run-to-run spread in this harness is wide: a second 60s run of
+`desktop-1280x800` alone moved `>20ms` from 61.5% to 77.4%. That is another
+reason to treat the distribution as a coarse regression signal and nothing
+more.
 
 `p50 ≈ 33.3ms` is identical at baseline and after. The only thing this
 distribution is good for is a **same-machine regression signal**: if a change
@@ -265,6 +277,20 @@ with 26 particles simulated in both.
 
 The beat is a brightness pulse, not a full-screen flash, and reduced mode
 removes it entirely. Nothing in the game strobes.
+
+`docs/mobile-effects-full.png` and `docs/mobile-effects-reduced.png` are the
+same iPhone-13 viewport with the mode flipped (`Effects on` vs `Effects low`).
+Caveat on that pair: the game-over panel covers most of the playfield, so the
+debris difference is only visible at the bottom edge. A mid-play capture would
+be better evidence and is not included.
+
+The per-viewport audit can be re-run one viewport at a time after an
+interruption:
+
+```bash
+FRAME_SECONDS=60 node scripts/mobile-audit.mjs              # all five
+AUDIT_ONLY=desktop-1280x800 node scripts/mobile-audit.mjs   # just one
+```
 
 ## Known limitations
 

@@ -35,10 +35,20 @@ const VIEWPORTS = [
   { name: 'desktop-1280x800', width: 1280, height: 800 },
 ];
 
+/** A 60s run per viewport is five minutes end to end, so allow a single
+ *  viewport to be re-measured on its own after an interrupted run:
+ *  AUDIT_ONLY=desktop-1280x800 node scripts/mobile-audit.mjs */
+const only = process.env.AUDIT_ONLY;
+const selected = only ? VIEWPORTS.filter((v) => v.name === only) : VIEWPORTS;
+if (only && selected.length === 0) {
+  console.error(`no viewport named ${only}; have: ${VIEWPORTS.map((v) => v.name).join(', ')}`);
+  process.exit(1);
+}
+
 const browser = await chromium.launch();
 const out = [];
 
-for (const vp of VIEWPORTS) {
+for (const vp of selected) {
   const ctx = await browser.newContext({
     viewport: { width: vp.width, height: vp.height },
     deviceScaleFactor: 3, // ask for 3 so a cap of <=2 is observable
